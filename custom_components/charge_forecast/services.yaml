@@ -1,0 +1,4 @@
+force_calibration:
+  name: Force calibration
+  description: Force an immediate recalibration of the price prediction model using historical data.
+  fields: {}
