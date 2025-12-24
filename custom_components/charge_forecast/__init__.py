@@ -1,14 +1,25 @@
 """The Charge Forecast integration."""
 from __future__ import annotations
 
+from datetime import timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN
+from .const import (
+    CONF_CALIBRATION_INTERVAL,
+    CONF_LOOKBACK_DAYS,
+    CONF_NORDPOOL_ENTITY,
+    CONF_UPDATE_INTERVAL,
+    DEFAULT_CALIBRATION_INTERVAL,
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_UPDATE_INTERVAL,
+    DOMAIN,
+)
 from .coordinator import ChargeforecastDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,7 +30,29 @@ SERVICE_FORCE_CALIBRATION = "force_calibration"
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Charge Forecast from a config entry."""
-    coordinator = ChargeforecastDataUpdateCoordinator(hass, entry)
+    
+    # Get config from entry
+    nordpool_entity = entry.data.get(CONF_NORDPOOL_ENTITY)
+    
+    # Get options with defaults
+    update_interval = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    calibration_interval = entry.options.get(
+        CONF_CALIBRATION_INTERVAL, DEFAULT_CALIBRATION_INTERVAL
+    )
+    lookback_days = entry.options.get(CONF_LOOKBACK_DAYS, DEFAULT_LOOKBACK_DAYS)
+    
+    # Get aiohttp session
+    session = async_get_clientsession(hass)
+    
+    # Create coordinator with proper arguments
+    coordinator = ChargeforecastDataUpdateCoordinator(
+        hass=hass,
+        session=session,
+        nordpool_entity=nordpool_entity,
+        update_interval=timedelta(seconds=update_interval),
+        calibration_interval=timedelta(seconds=calibration_interval),
+        lookback_days=lookback_days,
+    )
     
     await coordinator.async_config_entry_first_refresh()
     
@@ -63,4 +96,3 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)
-
