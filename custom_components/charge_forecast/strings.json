@@ -14,6 +14,7 @@
     },
     "error": {
       "entity_not_found": "De opgegeven Nordpool sensor bestaat niet. Controleer of de Nordpool integratie correct is geïnstalleerd."
+      "cannot_connect": "Failed to connect"
     },
     "abort": {
       "already_configured": "Deze Nordpool sensor is al geconfigureerd."
