@@ -1,1 +1,78 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Charge Forecast configureren",
+        "description": "Stel de Charge Forecast integratie in met je Nordpool sensor.",
+        "data": {
+          "nordpool_entity": "Nordpool sensor entiteit"
+        },
+        "data_description": {
+          "nordpool_entity": "De sensor die Nordpool prijzen bevat (bijv. sensor.nordpool_kwh_nl_eur_3_10_021)"
+        }
+      }
+    },
+    "error": {
+      "entity_not_found": "De opgegeven Nordpool sensor bestaat niet. Controleer of de Nordpool integratie correct is geïnstalleerd."
+    },
+    "abort": {
+      "already_configured": "Deze Nordpool sensor is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Geavanceerde opties",
+        "description": "Pas de update en calibratie intervallen aan.",
+        "data": {
+          "update_interval": "Update interval (seconden)",
+          "calibration_interval": "Calibratie interval (seconden)",
+          "lookback_days": "Historische data (dagen)"
+        },
+        "data_description": {
+          "update_interval": "Hoe vaak NED data wordt opgehaald (600-86400 sec, standaard 3600 = 1 uur)",
+          "calibration_interval": "Hoe vaak het prijsmodel wordt geherberekend (3600-604800 sec, standaard 86400 = 24 uur)",
+          "lookback_days": "Hoeveel dagen historische data voor calibratie (7-30 dagen, standaard 14)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "consumption": {
+        "name": "NED Verbruik"
+      },
+      "wind_onshore": {
+        "name": "NED Wind Onshore"
+      },
+      "wind_offshore": {
+        "name": "NED Wind Offshore"
+      },
+      "solar": {
+        "name": "NED Zonne-energie"
+      },
+      "restlast": {
+        "name": "NED Restlast"
+      },
+      "charge_advice": {
+        "name": "Laadadvies",
+        "state": {
+          "CHARGE_SOON": "Laad binnen 48 uur",
+          "WAIT_2_3_DAYS": "Wacht 2-3 dagen",
+          "WAIT_4_7_DAYS": "Wacht 4-7 dagen",
+          "NO_DATA": "Geen data beschikbaar"
+        }
+      },
+      "model_accuracy": {
+        "name": "Model Nauwkeurigheid"
+      }
+    }
+  },
+  "services": {
+    "force_calibration": {
+      "name": "Forceer calibratie",
+      "description": "Handmatig het prijsmodel opnieuw calibreren op basis van historische data."
+    }
+  }
+}
 
