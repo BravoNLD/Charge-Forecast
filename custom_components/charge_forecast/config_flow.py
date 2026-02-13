@@ -7,60 +7,68 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
-import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    CONF_CALIBRATION_INTERVAL,
-    CONF_LOOKBACK_DAYS,
-    CONF_NORDPOOL_ENTITY,
-    CONF_UPDATE_INTERVAL,
-    DEFAULT_CALIBRATION_INTERVAL,
-    DEFAULT_LOOKBACK_DAYS,
-    DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    CONF_CHARGING_DURATION,
+    DEFAULT_CHARGING_DURATION,
+    EPEX_SENSOR_ENTITY_ID,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _validate_nordpool_entity(hass: HomeAssistant, entity_id: str) -> bool:
-    """Validate that the nordpool entity exists."""
-    return hass.states.get(entity_id) is not None
-
-
-class ChargeforecastConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ChargeForecastConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Charge Forecast."""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.FlowResult:
+    ) -> FlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
-        if user_input is not None:
-            # Validate nordpool entity
-            nordpool_entity = user_input[CONF_NORDPOOL_ENTITY]
-            
-            if not _validate_nordpool_entity(self.hass, nordpool_entity):
-                errors["base"] = "entity_not_found"
-            else:
-                # Check if already configured
-                await self.async_set_unique_id(nordpool_entity)
-                self._abort_if_unique_id_configured()
+        # Check if NED Energy Forecast integration is loaded
+        if "ned_energy_forecast" not in self.hass.config.components:
+            errors["base"] = "ned_forecast_not_loaded"
+            _LOGGER.warning("NED Energy Forecast integration not loaded")
 
-                return self.async_create_entry(
-                    title="Charge Forecast",
-                    data=user_input,
-                )
+        # Check if EPEX sensor exists
+        epex_state = self.hass.states.get(EPEX_SENSOR_ENTITY_ID)
+        if epex_state is None:
+            errors["base"] = "epex_sensor_not_found"
+            _LOGGER.warning(f"EPEX sensor {EPEX_SENSOR_ENTITY_ID} not found")
 
+        if user_input is not None and not errors:
+            # Create entry
+            return self.async_create_entry(
+                title="Charge Forecast",
+                data={},
+                options={
+                    CONF_CHARGING_DURATION: user_input.get(
+                        CONF_CHARGING_DURATION, DEFAULT_CHARGING_DURATION
+                    ),
+                },
+            )
+
+        # Show configuration form
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_NORDPOOL_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor"),
+                vol.Optional(
+                    CONF_CHARGING_DURATION,
+                    default=DEFAULT_CHARGING_DURATION,
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1,
+                        max=12,
+                        step=1,
+                        unit_of_measurement="hours",
+                        mode=selector.NumberSelectorMode.BOX,
+                    ),
                 ),
             }
         )
@@ -72,15 +80,14 @@ class ChargeforecastConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
-    @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> ChargeforecastOptionsFlowHandler:
+    ) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
-        return ChargeforecastOptionsFlowHandler(config_entry)
+        return ChargeForecastOptionsFlow(config_entry)
 
 
-class ChargeforecastOptionsFlowHandler(config_entries.OptionsFlow):
+class ChargeForecastOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Charge Forecast."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
@@ -89,31 +96,29 @@ class ChargeforecastOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.FlowResult:
+    ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        options = self.config_entry.options
-        
-        data_schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_UPDATE_INTERVAL,
-                    default=options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
-                ): vol.All(cv.positive_int, vol.Range(min=600, max=86400)),
-                vol.Optional(
-                    CONF_CALIBRATION_INTERVAL,
-                    default=options.get(
-                        CONF_CALIBRATION_INTERVAL, DEFAULT_CALIBRATION_INTERVAL
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_CHARGING_DURATION,
+                        default=self.config_entry.options.get(
+                            CONF_CHARGING_DURATION, DEFAULT_CHARGING_DURATION
+                        ),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=1,
+                            max=12,
+                            step=1,
+                            unit_of_measurement="hours",
+                            mode=selector.NumberSelectorMode.BOX,
+                        ),
                     ),
-                ): vol.All(cv.positive_int, vol.Range(min=3600, max=604800)),
-                vol.Optional(
-                    CONF_LOOKBACK_DAYS,
-                    default=options.get(CONF_LOOKBACK_DAYS, DEFAULT_LOOKBACK_DAYS),
-                ): vol.All(cv.positive_int, vol.Range(min=7, max=30)),
-            }
+                }
+            ),
         )
-
-        return self.async_show_form(step_id="init", data_schema=data_schema)
-
